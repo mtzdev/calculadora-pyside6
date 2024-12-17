@@ -47,7 +47,7 @@ class Display(QLineEdit):
             signals[key_pressed]()
             return event.ignore()
 
-        # Signal para os operadores +-*/
+        # Signal para os operadores +, -, *, /
         if key_pressed in [keys.Key_Plus, keys.Key_Minus, keys.Key_Asterisk, keys.Key_Slash]:
             self.operatorPressed.emit(key_text)
             return event.ignore()

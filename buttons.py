@@ -2,7 +2,7 @@ import math
 from PySide6.QtWidgets import QPushButton, QGridLayout
 from PySide6.QtCore import Slot
 
-from utils import isValidNumber
+from utils import convertNumber, isValidNumber
 from variables import MEDIUM_FONT_SIZE
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
@@ -39,7 +39,7 @@ class ButtonsGrid(QGridLayout):
             ['7', '8', '9', '*'],
             ['4', '5', '6', '-'],
             ['1', '2', '3', '+'],
-            ['', '0', '.', '='],
+            ['+/-', '0', '.', '='],
         ]
 
         self.apply_buttons()
@@ -50,7 +50,7 @@ class ButtonsGrid(QGridLayout):
 
     @property
     def equation(self):
-        return self.equation
+        return self._equation
 
     @equation.setter
     def equation(self, value):
@@ -65,10 +65,7 @@ class ButtonsGrid(QGridLayout):
                     button.setProperty('cssClass', 'specialButton')
                     self._configSpecialButton(button)
 
-                if button_name == '0':
-                    self.addWidget(button, k, 0, 1, 2)
-                elif button_name != '':
-                    self.addWidget(button, k, v)
+                self.addWidget(button, k, v)
 
                 buttonslot = self._makeSlot(
                     self._insertButtonTextToDisplay,
@@ -91,7 +88,10 @@ class ButtonsGrid(QGridLayout):
             self._connectButtonClicked(button, self._calculate)
 
         if text == '◀':
-            self._connectButtonClicked(button, self.display.backspace)
+            self._connectButtonClicked(button, self._backspace)
+
+        if text == '+/-':
+            self._connectButtonClicked(button, self._invertNumber)
 
     def _makeSlot(self, func, *args, **kwargs):
         @Slot()
@@ -99,26 +99,47 @@ class ButtonsGrid(QGridLayout):
             func(*args, **kwargs)
         return realSlot
 
+    @Slot()
+    def _invertNumber(self):
+        displayText = self.display.text()
+        self.display.setFocus()
+
+        if not isValidNumber(displayText):
+            self._showInfoBox('Insira um número antes de inverter o sinal!')
+            return
+
+        number = float(displayText) * -1
+        self.display.setText(str(number))
+
     def _insertButtonTextToDisplay(self, button):
         buttonText = button.text()
+        self.display.setFocus()
 
         if not isValidNumber(self.display.text() + buttonText):
             return
 
-        self.display.insert(button.text())
+        self.display.insert(buttonText)
 
     @Slot()
     def _clear(self):
         self.display.clear()
+        self.display.setFocus()
         self._left = None
         self._right = None
         self._op = None
         self.equation = 'Sua conta'
 
+    @Slot()
+    def _backspace(self):
+        self.display.backspace()
+        self.display.setFocus()
+
+    @Slot()
     def _operatorClicked(self, button = None, key_text = None):
         buttonText = button.text() if button else key_text  # Necessário para funcionar com button, como também com Signal (operatorPressed)
         displayText = self.display.text()
         self.display.clear()
+        self.display.setFocus()
 
         # É um operador e não há 1º valor ainda (permite mudar operador qnd já inserido 1º valor)
         if not isValidNumber(displayText) and self._left is None:
@@ -127,7 +148,7 @@ class ButtonsGrid(QGridLayout):
 
         # Se já tiver o 1º valor, aguarda 2º e não modifica 1º
         if self._left is None:
-            self._left = float(displayText)
+            self._left = convertNumber(displayText)
 
         self._op = buttonText
         self.equation = f'{self._left} {self._op}'
@@ -136,18 +157,19 @@ class ButtonsGrid(QGridLayout):
     @Slot()
     def _calculate(self):
         displayText = self.display.text()
+        self.display.setFocus()
         # display válido (right), left não é vazio e operador já foi selecionado
         if not isValidNumber(displayText) or self._left is None or self._op is None:
             return
 
-        self._right = float(displayText)
+        self._right = convertNumber(displayText)
         self.equation = f'{self._left} {self._op} {self._right} ='
 
         try:
             if self._op == '^':
                 result = str(math.pow(self._left, self._right))
             else:
-                result = str(eval(f'{self._left} {self._op} {self._right}'))
+                result = str(round(eval(f'{self._left} {self._op} {self._right}'), 14))
         except ZeroDivisionError:
             result = '0'
             self._showErrorBox('Divisão por zero não é possível!')
@@ -155,7 +177,7 @@ class ButtonsGrid(QGridLayout):
             result = '0'
             self._showErrorBox('O número calculado é muito grande!')
         self.display.setText(result)
-        self._left = float(result)
+        self._left = convertNumber(result)
         self._right = None
         self._op = None
 
@@ -165,6 +187,7 @@ class ButtonsGrid(QGridLayout):
         msgBox.setWindowTitle("AVISO!")
         msgBox.setIcon(msgBox.Icon.Information)
         msgBox.exec()
+        self.display.setFocus()
 
     def _showErrorBox(self, text):
         msgBox: QMessageBox = self.window.makeMessageBox()
@@ -172,3 +195,4 @@ class ButtonsGrid(QGridLayout):
         msgBox.setWindowTitle("ERRO!")
         msgBox.setIcon(msgBox.Icon.Critical)
         msgBox.exec()
+        self.display.setFocus()
