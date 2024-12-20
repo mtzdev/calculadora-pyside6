@@ -1,10 +1,12 @@
 import sys
 from display import Display
 from PySide6.QtWidgets import QApplication
+from PySide6.QtGui import QIcon
 from main_window import MainWindow
 from info import Info
 from buttons import ButtonsGrid
 from styles import setupTheme
+from variables import WINDOW_ICON_PATH
 
 
 if __name__ == '__main__':
@@ -13,6 +15,10 @@ if __name__ == '__main__':
     setupTheme(app)
 
     window.setWindowTitle("Calculadora")
+
+    icon = QIcon(str(WINDOW_ICON_PATH))
+    window.setWindowIcon(icon)
+    app.setWindowIcon(icon)
 
     # Info
     info = Info('Sua conta')
